@@ -1,0 +1,1 @@
+gcc -o static_input_test ./static_input_test.c ../lexer.h ../parser.h ../lexer.c ../parser.c ../engine.c ../engine.h && static_input_test.exe

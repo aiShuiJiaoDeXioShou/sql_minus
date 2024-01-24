@@ -5,10 +5,10 @@
 #ifndef SQL_MINUS_ENGINE_H
 #define SQL_MINUS_ENGINE_H
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include "lexer.h"
 
+// 这个参数不能改 100 * 100 会令它内存爆炸
 #define MAX_COLUMNS 10
 #define MAX_ROWS 100
 
@@ -43,12 +43,6 @@ void destroyTableList(TableList *tableList);
 
 // 添加Table到TableList
 void addTable(TableList *tableList, Table table);
-
-// 打印一个表格
-void printTable(Table *table);
-
-// 打印指定行列的数据
-void printData(Table *table, int row[], int column[]);
 
 // 通过下标获取Table
 Table* getTableByIndex(TableList *tableList, int index);

@@ -13,15 +13,21 @@ void test_tokenize(char* input) {
 
 // gcc -o lexer_test lexer_test.c lexer.c
 int main() {
-//     test_tokenize("CREATE TABLE students (\n"
-//                   "\tid INT PRIMARY KEY, \n"
-//                   "\tname CHAR(30)\n"
-//                   ");");
-//     test_tokenize("DELETE FROM students WHERE id = 1;");
-//     test_tokenize("DELETE FROM students WHERE id = 1;");
-//     test_tokenize("UPDATE students SET name = 'Bob' WHERE id = 1;");
+     test_tokenize("CREATE TABLE students (\n"
+                   "\tid INT PRIMARY KEY, \n"
+                   "\tname CHAR(30)\n"
+                   ");");
+     test_tokenize("DELETE FROM students WHERE id = 1;");
+     test_tokenize("DELETE FROM students WHERE id = 1;");
+     test_tokenize("UPDATE students SET name = 'Bob' WHERE id = 1;");
      test_tokenize("SELECT * FROM students ORDER BY id ASC;");
-     test_tokenize("SELECT * FROM students WHERE id = 1;");
+     test_tokenize("SELECT * FROM students WHERE id <= 1;");
+     test_tokenize("INSERT INTO students VALUES(3, 'Carol');");
+     test_tokenize("INSERT INTO users VALUES (\n"
+                   "    'San Zhang',\n"
+                   "    1,\n"
+                   "    'Qk1eAAAAAAAAAD4AAAAoAAAACAAAAAgAAAABAAEAAAAAACAAAAAlFgAAJRYAAAAAAAAAAAAAAAAAAP///wD/AAAA5wAAAMMAAACZAAAAmQAAAMMAAADnAAAA/wAAAA=='\n"
+                   ");");
 //     // 测试TokenList* parseFile(const char* filename)
 //     printf("Testing parseFile with input: test.sql\n");
 //     TokenList* list = parseFile("test.sql");

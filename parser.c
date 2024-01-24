@@ -52,6 +52,20 @@ bool parse(TokenList tokens) {
     }
 }
 
+// 数据类型判断函数
+bool checkDataType(Token token) {
+    if (token.type != KEYWORD) {
+        return false;
+    }
+    if (strcmp(token.value, "INT") == 0) {
+        return true;
+    } else if (strcmp(token.value, "CHAR") == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool parseCreateTable(TokenList tokens) {
     if (tokens.size < 4) {
         // printError("Incomplete CREATE TABLE statement");
@@ -72,6 +86,7 @@ bool parseCreateTable(TokenList tokens) {
     }
 
     int i = 4;
+    int primaryKeyNumber = 0;
     while (i < tokens.size - 1 &&
            (tokens.tokens[i].type != RIGHT_BRACKET || strcmp(tokens.tokens[i].value, ")") != 0)) {
         if (tokens.tokens[i].type != IDENTIFIER) {
@@ -80,6 +95,13 @@ bool parseCreateTable(TokenList tokens) {
             return false;
         }
         i++;
+
+        // 判断是否是数据类型
+        if (!checkDataType(tokens.tokens[i])) {
+            // printError("Expected data type in column definition");
+            printError("SYNTAX ERROR");
+            return false;
+        }
 
         // 判断类型
         while (i < tokens.size && tokens.tokens[i].type == KEYWORD) {
@@ -121,7 +143,6 @@ bool parseCreateTable(TokenList tokens) {
                 break;
             }
         }
-
         // 判断其他关键字
         while (i < tokens.size && tokens.tokens[i].type == KEYWORD) {
             if (strcmp(tokens.tokens[i].value, "PRIMARY") == 0) {
@@ -133,6 +154,13 @@ bool parseCreateTable(TokenList tokens) {
                     return false;
                 }
                 i++;
+                // 判断是否有多个主键,如果有多个主键, 那么就是错误的
+                if (primaryKeyNumber > 0) {
+                    // printError("Only one PRIMARY KEY is allowed");
+                    printError("ERROR");
+                    return false;
+                }
+                primaryKeyNumber++;
             } else if (strcmp(tokens.tokens[i].value, "NOT") == 0) {
                 i++;
                 if (i >= tokens.size || tokens.tokens[i].type != KEYWORD ||

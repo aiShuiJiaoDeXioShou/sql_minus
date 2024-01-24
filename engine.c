@@ -2,6 +2,7 @@
 // Created by 28322 on 2024/1/22.
 // 语法执行引擎
 
+#include <stdbool.h>
 #include "engine.h"
 
 // 判断字段位于表单的哪一行
@@ -14,6 +15,42 @@ int getTableColumnIndex(const Table *table, const char *literal) {
         }
     }
     return columnIndex;
+}
+
+// 检查Int 类型和char 类型是否符合规范
+bool checkIntAndString(TableColumn column, char* value) {
+    if(strcmp(column.type, "INT") == 0){
+        // 判断是否为数字
+        for(int j=0;j<strlen(value);j++){
+            if(value[j] < '0' || value[j] > '9'){
+                // printError("Value is not a number");
+                printError("ERROR");
+                return false;
+            }
+        }
+    }
+        // 判断是否包含CHAR
+    else if(strstr(column.type, "CHAR") != NULL){
+        // 判断字符串长度是否超过定义的长度
+        // 提取column.type中的数字
+        int num = 0;
+        for(int j=0;j<strlen(column.type);j++){
+            if(column.type[j] >= '0' && column.type[j] <= '9'){
+                num = num * 10 + column.type[j] - '0';
+            }
+        }
+        int len = strlen(value) - 2;
+        if(len > num + 6){
+            // printError("String is too long");
+            printError("ERROR");
+            return false;
+        }
+    } else {
+        // printError("Unknown type");
+        printError("ERROR");
+        return false;
+    }
+    return true;
 }
 
 // 根据解析结果提供不同的操作
@@ -33,30 +70,6 @@ void charOrNumber(TokenList *tokens, char *value) {
 void initTableList(TableList *tableList) {
     tableList->tableCount = 0;
     tableList->tables = (Table *) malloc(sizeof(Table));
-}
-
-void executeEngine(TokenList *tokens, TableList *tableList) {
-    // 根据语法树执行相应的操作
-    switch (tokens->tokens[0].type) {
-        case KEYWORD:
-            if (strcmp(tokens->tokens[0].value, "CREATE") == 0) {
-                executeCreateTable(tokens, tableList);
-            } else if (strcmp(tokens->tokens[0].value, "INSERT") == 0) {
-                executeInsertInto(tokens, tableList);
-            } else if (strcmp(tokens->tokens[0].value, "DELETE") == 0) {
-                executeDeleteFrom(tokens, tableList);
-            } else if (strcmp(tokens->tokens[0].value, "UPDATE") == 0) {
-                executeUpdate(tokens, tableList);
-            } else if (strcmp(tokens->tokens[0].value, "SELECT") == 0) {
-                executeSelect(tokens, tableList);
-            } else {
-                // printError("Unsupported operation");
-                printError("ERROR");
-            }
-            break;
-        default:
-            printError("ERROR");
-    }
 }
 
 // 销毁TableList
@@ -109,51 +122,6 @@ Table *getTable(TableList *tableList, const char *tableName) {
     return NULL;
 }
 
-// 打印一个表格 使用\t 分隔
-void printTable(Table *table) {
-    for(int i=0;i<table->columnCount;i++){
-        printf("%s\t",table->columns[i].name);
-    }
-    printf("\n");
-    // 打印table所有的数据 table->data
-    for (int i = 0; i < table->rowCount; i++) {
-        for (int j = 0; j < table->columnCount; j++) {
-            printf("%s\t", table->data[i][j]);
-        }
-        printf("\n");
-    }
-}
-
-// 判断一个元素是不是在数组里面
-int isInArray(int *array, int size, int value) {
-    for (int i = 0; i < size; i++) {
-        if (array[i] == value) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-// 打印指定行列的数据
-void printData(Table *table, int* row, int* column) {
-    for(int i=0;i<table->columnCount;i++){
-        printf("%s\t",table->columns[i].name);
-    }
-    printf("\n");
-    for (int i = 0; i < table->rowCount; i++) {
-        // 判断当前行是否在row数组里面
-        if (isInArray(row, sizeof(row) / sizeof(int), i)) {
-            for (int j = 0; j < table->columnCount; j++) {
-                // 判断当前列是否在column数组里面
-                if (isInArray(column, sizeof(column) / sizeof(int), j)) {
-                    printf("%s\t", table->data[i][j]);
-                }
-            }
-            printf("\n");
-        }
-    }
-}
-
 void executeCreateTable(TokenList *tokens, TableList *tableList) {
     // 跳过 CREATE TABLE
     tokens->tokens++;
@@ -165,7 +133,8 @@ void executeCreateTable(TokenList *tokens, TableList *tableList) {
 
     // 查找表格是否已经存在
     if (getTable(tableList, tableName) != NULL) {
-        printError("Table already exists");
+        // printError("Table already exists");
+        printError("ERROR");
         return;
     }
 
@@ -251,7 +220,8 @@ void executeInsertInto(TokenList *tokens, TableList *tableList) {
 
     // 如果表格不存在，返回错误
     if (table == NULL) {
-        printError("Table does not exist");
+        // printError("Table does not exist");
+        printError("ERROR");
         return;
     }
 
@@ -275,6 +245,12 @@ void executeInsertInto(TokenList *tokens, TableList *tableList) {
             // 跳过一个单引号
             tokens->tokens++;
             // 赋值且跳过字符串
+            // 判断改值是否过长, 最大长度为255
+            if(strlen(tokens->tokens[0].value) > 255){
+                // printError("String is too long");
+                printError("ERROR");
+                return;
+            }
             strcpy(values[valueCount++], tokens->tokens[0].value);
             tokens->tokens++;
             // 跳过一个单引号
@@ -284,16 +260,24 @@ void executeInsertInto(TokenList *tokens, TableList *tableList) {
 
     // 检查插入的值的数量是否与表的列数量匹配
     if (valueCount != table->columnCount) {
-        printError("Value count does not match column count");
+        // printError("Value count does not match column count");
+        printError("ERROR");
         return;
     }
 
     // 在表中插入新的记录
     for (int i = 0; i < valueCount; i++) {
-        strcpy(table->data[table->rowCount][i], values[i]);
+        // 判断这里面的值是否符合规范, 获取表格定义好的列
+        TableColumn column = table->columns[i];
+        char* value = values[i];
+        // 检查类型值是否符合规范
+        if(checkIntAndString(column, value)) {
+            strcpy(table->data[table->rowCount][i], values[i]);
+        } else {
+            return;
+        }
     }
     table->rowCount++;
-
     // 输出插入的记录数量
     printf("%d RECORDS INSERTED\n", 1);
 }
@@ -312,7 +296,8 @@ void executeDeleteFrom(TokenList *tokens, TableList *tableList) {
 
     // 如果表格不存在，返回错误
     if (table == NULL) {
-        printError("Table does not exist");
+        // printError("Table does not exist");
+        printError("ERROR");
         return;
     }
 
@@ -338,12 +323,14 @@ void executeDeleteFrom(TokenList *tokens, TableList *tableList) {
 
     // 遍历表中的所有行
     int deletedCount = 0;
-    for (int i = 0; i < table->rowCount; i++) {
+    int rowNumber = table->rowCount;
+    for (int i = 0; i < rowNumber; i++) {
         // 在这里添加应用条件子句的代码
         // 如果条件子句为真，删除这一行
         // 判断操作符 = > <
         if (strcmp(operator, "=") == 0) {
-            if (strcmp(table->data[i][columnIndex], value) == 0) {
+            char* v = table->data[i][columnIndex];
+            if (strcmp(v, value) == 0) {
                 // 删除这一行
                 for (int j = i; j < table->rowCount - 1; j++) {
                     for (int k = 0; k < table->columnCount; k++) {
@@ -375,6 +362,39 @@ void executeDeleteFrom(TokenList *tokens, TableList *tableList) {
                 table->rowCount--;
                 deletedCount++;
             }
+        } else if(strcmp(operator, "<=") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) <= 0) {
+                // 删除这一行
+                for (int j = i; j < table->rowCount - 1; j++) {
+                    for (int k = 0; k < table->columnCount; k++) {
+                        strcpy(table->data[j][k], table->data[j + 1][k]);
+                    }
+                }
+                table->rowCount--;
+                deletedCount++;
+            }
+        } else if(strcmp(operator, ">=") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) >= 0) {
+                // 删除这一行
+                for (int j = i; j < table->rowCount - 1; j++) {
+                    for (int k = 0; k < table->columnCount; k++) {
+                        strcpy(table->data[j][k], table->data[j + 1][k]);
+                    }
+                }
+                table->rowCount--;
+                deletedCount++;
+            }
+        } else if(strcmp(operator, "<>") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) != 0) {
+                // 删除这一行
+                for (int j = i; j < table->rowCount - 1; j++) {
+                    for (int k = 0; k < table->columnCount; k++) {
+                        strcpy(table->data[j][k], table->data[j + 1][k]);
+                    }
+                }
+                table->rowCount--;
+                deletedCount++;
+            }
         }
     }
 
@@ -393,7 +413,8 @@ void executeUpdate(TokenList *tokens, TableList *tableList) {
     Table *table = getTable(tableList, tableName);
     // 如果表格不存在，返回错误
     if (table == NULL) {
-        printError("Table does not exist");
+        // printError("Table does not exist");
+        printError("ERROR");
         return;
     }
     // 跳过表名和SET
@@ -440,19 +461,61 @@ void executeUpdate(TokenList *tokens, TableList *tableList) {
         if (strcmp(operator, "=") == 0) {
             if (strcmp(table->data[i][columnIndex], conditionValue) == 0) {
                 // 更新这一行的指定字段
-                strcpy(table->data[i][updateColumnIndex], value);
+                if(checkIntAndString(table->columns[updateColumnIndex], value)) {
+                    strcpy(table->data[i][updateColumnIndex], value);
+                } else {
+                    return;
+                }
                 updatedCount++;
             }
         } else if (strcmp(operator, ">") == 0) {
             if (strcmp(table->data[i][columnIndex], conditionValue) > 0) {
                 // 更新这一行的指定字段
-                strcpy(table->data[i][updateColumnIndex], value);
+                if(checkIntAndString(table->columns[updateColumnIndex], value)) {
+                    strcpy(table->data[i][updateColumnIndex], value);
+                } else {
+                    return;
+                }
                 updatedCount++;
             }
         } else if (strcmp(operator, "<") == 0) {
             if (strcmp(table->data[i][columnIndex], conditionValue) < 0) {
                 // 更新这一行的指定字段
-                strcpy(table->data[i][updateColumnIndex], value);
+                if(checkIntAndString(table->columns[updateColumnIndex], value)) {
+                    strcpy(table->data[i][updateColumnIndex], value);
+                } else {
+                    return;
+                }
+                updatedCount++;
+            }
+        } else if(strcmp(operator, "<=") == 0) {
+            if (strcmp(table->data[i][columnIndex], conditionValue) <= 0) {
+                // 更新这一行的指定字段
+                if(checkIntAndString(table->columns[updateColumnIndex], value)) {
+                    strcpy(table->data[i][updateColumnIndex], value);
+                } else {
+                    return;
+                }
+                updatedCount++;
+            }
+        } else if(strcmp(operator, ">=") == 0) {
+            if (strcmp(table->data[i][columnIndex], conditionValue) >= 0) {
+                // 更新这一行的指定字段
+                if(checkIntAndString(table->columns[updateColumnIndex], value)) {
+                    strcpy(table->data[i][updateColumnIndex], value);
+                } else {
+                    return;
+                }
+                updatedCount++;
+            }
+        } else if(strcmp(operator, "<>") == 0) {
+            if (strcmp(table->data[i][columnIndex], conditionValue) != 0) {
+                // 更新这一行的指定字段
+                if(checkIntAndString(table->columns[updateColumnIndex], value)) {
+                    strcpy(table->data[i][updateColumnIndex], value);
+                } else {
+                    return;
+                }
                 updatedCount++;
             }
         }
@@ -460,6 +523,211 @@ void executeUpdate(TokenList *tokens, TableList *tableList) {
 
     // 输出更新的记录数量
     printf("%d RECORDS UPDATED\n", updatedCount);
+}
+
+// 当查询为*的时候
+void selectDataAll(Table *table, const char *operator, const char *value, int columnIndex) {// 记录要输出的数据
+    char* printData[table->rowCount][table->columnCount];
+    // 初始化
+    for(int i=0;i<table->rowCount;i++){
+        for(int j=0;j<table->columnCount;j++){
+            printData[i][j] = (char*)malloc(sizeof(char)*256);
+        }
+    }
+    int recordCount = 0;
+    // 遍历表中的所有行
+    for (int i = 0; i < table->rowCount; i++) {
+        // 在这里添加应用条件子句的代码
+        // 如果条件子句为真，输出这一行
+        // 判断操作符 = > <
+        if (strcmp(operator, "=") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) == 0) {
+                // 输出这一行
+                for (int j = 0; j < table->columnCount; j++) {
+                    printData[recordCount][j] = table->data[i][j];
+                    // printf("%s\t", table->data[i][j]);
+                }
+                recordCount++;
+                // printf("\n");
+            }
+        } else if (strcmp(operator, ">") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) > 0) {
+                // 输出这一行
+                for (int j = 0; j < table->columnCount; j++) {
+                    // printf("%s\t", table->data[i][j]);
+                    printData[recordCount][j] = table->data[i][j];
+                }
+                recordCount++;
+                // printf("\n");
+            }
+        } else if (strcmp(operator, "<") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) < 0) {
+                // 输出这一行
+                for (int j = 0; j < table->columnCount; j++) {
+                    // printf("%s\t", table->data[i][j]);
+                    printData[recordCount][j] = table->data[i][j];
+                }
+                recordCount++;
+                // printf("\n");
+            }
+        } else if (strcmp(operator, "<=") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) <= 0) {
+                // 输出这一行
+                for (int j = 0; j < table->columnCount; j++) {
+                    // printf("%s\t", table->data[i][j]);
+                    printData[recordCount][j] = table->data[i][j];
+                }
+                recordCount++;
+                // printf("\n");
+            }
+        } else if (strcmp(operator, ">=") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) >= 0) {
+                // 输出这一行
+                for (int j = 0; j < table->columnCount; j++) {
+                    // printf("%s\t", table->data[i][j]);
+                    printData[recordCount][j] = table->data[i][j];
+                }
+                recordCount++;
+                // printf("\n");
+            }
+        } else if (strcmp(operator, "<>") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) != 0) {
+                // 输出这一行
+                for (int j = 0; j < table->columnCount; j++) {
+                    // printf("%s\t", table->data[i][j]);
+                    printData[recordCount][j] = table->data[i][j];
+                }
+                recordCount++;
+                // printf("\n");
+            }
+        }
+        else {
+            for (int j = 0; j < table->columnCount; j++) {
+                // printf("%s\t", table->data[i][j]);
+                printData[recordCount][j] = table->data[i][j];
+            }
+            recordCount++;
+        }
+    }
+    printf("%d RECORDS FOUND\n", recordCount);
+    if(recordCount > 0) {
+        // 输出表格的所有字段
+        for (int i = 0; i < table->columnCount; i++) {
+            printf("%s\t", table->columns[i].name);
+        }
+        printf("\n");
+        // 打印数据
+        for(int i=0;i<recordCount;i++){
+            for(int j=0;j<table->columnCount;j++){
+                printf("%s\t",printData[i][j]);
+            }
+            printf("\n");
+        }
+    }
+}
+
+// 当查询为指定字段的时候
+void selectColumnData(Table *table, const char *operator, const char *value, int columnIndex, char fields[][256], int fieldCount) {
+    int recordCount = 0;
+    char* printData[table->rowCount][table->columnCount];
+    // 初始化
+    for(int i=0;i<table->rowCount;i++){
+        for(int j=0;j<table->columnCount;j++){
+            printData[i][j] = (char*)malloc(sizeof(char)*256);
+        }
+    }
+    // 遍历表中的所有行
+    for (int i = 0; i < table->rowCount; i++) {
+        // 在这里添加应用条件子句的代码
+        // 如果条件子句为真，输出这一行
+        // 判断操作符 = > <
+        if (strcmp(operator, "=") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) == 0) {
+                // 输出这一行
+                for (int j = 0; j < fieldCount; j++) {
+                    // printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
+                    printData[recordCount][j] = table->data[i][getTableColumnIndex(table, fields[j])];
+                }
+                // printf("\n");
+                recordCount++;
+            }
+        } else if (strcmp(operator, ">") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) > 0) {
+                // 输出这一行
+                for (int j = 0; j < fieldCount; j++) {
+                    // printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
+                    printData[recordCount][j] = table->data[i][getTableColumnIndex(table, fields[j])];
+                }
+                // printf("\n");
+                recordCount++;
+            }
+        } else if (strcmp(operator, "<") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) < 0) {
+                // 输出这一行
+                for (int j = 0; j < fieldCount; j++) {
+                    // printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
+                    printData[recordCount][j] = table->data[i][getTableColumnIndex(table, fields[j])];
+                }
+                // printf("\n");
+                recordCount++;
+            }
+        } else if(strcmp(operator, "<=") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) <= 0) {
+                // 输出这一行
+                for (int j = 0; j < fieldCount; j++) {
+                    // printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
+                    printData[recordCount][j] = table->data[i][getTableColumnIndex(table, fields[j])];
+                }
+                // printf("\n");
+                recordCount++;
+            }
+        } else if(strcmp(operator, ">=") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) >= 0) {
+                // 输出这一行
+                for (int j = 0; j < fieldCount; j++) {
+                    // printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
+                    printData[recordCount][j] = table->data[i][getTableColumnIndex(table, fields[j])];
+                }
+                // printf("\n");
+                recordCount++;
+            }
+        } else if(strcmp(operator, "<>") == 0) {
+            if (strcmp(table->data[i][columnIndex], value) != 0) {
+                // 输出这一行
+                for (int j = 0; j < fieldCount; j++) {
+                    // printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
+                    printData[recordCount][j] = table->data[i][getTableColumnIndex(table, fields[j])];
+                }
+                // printf("\n");
+                recordCount++;
+            }
+        }
+        else {
+            // 输出这一行
+            for (int j = 0; j < fieldCount; j++) {
+                // printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
+                printData[recordCount][j] = table->data[i][getTableColumnIndex(table, fields[j])];
+            }
+            // printf("\n");
+            recordCount++;
+        }
+    }
+
+    printf("%d RECORDS FOUND\n", recordCount);
+    if(recordCount > 0) {
+        // 输出指定的字段
+        for (int i = 0; i < fieldCount; i++) {
+            printf("%s\t", fields[i]);
+        }
+        printf("\n");
+        // 打印数据
+        for(int i=0;i<recordCount;i++){
+            for(int j=0;j<fieldCount;j++){
+                printf("%s\t",printData[i][j]);
+            }
+            printf("\n");
+        }
+    }
 }
 
 void executeSelect(TokenList *tokens, TableList *tableList) {
@@ -498,7 +766,8 @@ void executeSelect(TokenList *tokens, TableList *tableList) {
 
     // 如果表格不存在，返回错误
     if (table == NULL) {
-        printError("Table does not exist");
+        // printError("Table does not exist");
+        printError("ERROR");
         return;
     }
 
@@ -528,96 +797,34 @@ void executeSelect(TokenList *tokens, TableList *tableList) {
 
     // fieldCount 为 0 时，输出所有字段
     if (!fieldCount) {
-        // 输出表格的所有字段
-        for (int i = 0; i < table->columnCount; i++) {
-            printf("%s\t", table->columns[i].name);
-        }
-        printf("\n");
-        // 遍历表中的所有行
-        for (int i = 0; i < table->rowCount; i++) {
-            // 在这里添加应用条件子句的代码
-            // 如果条件子句为真，输出这一行
-            // 判断操作符 = > <
-            if (strcmp(operator, "=") == 0) {
-                if (strcmp(table->data[i][columnIndex], value) == 0) {
-                    // 输出这一行
-                    for (int j = 0; j < table->columnCount; j++) {
-                        printf("%s\t", table->data[i][j]);
-                    }
-                    printf("\n");
-                }
-            } else if (strcmp(operator, ">") == 0) {
-                if (strcmp(table->data[i][columnIndex], value) > 0) {
-                    // 输出这一行
-                    for (int j = 0; j < table->columnCount; j++) {
-                        printf("%s\t", table->data[i][j]);
-                    }
-                    printf("\n");
-                }
-            } else if (strcmp(operator, "<") == 0) {
-                if (strcmp(table->data[i][columnIndex], value) < 0) {
-                    // 输出这一行
-                    for (int j = 0; j < table->columnCount; j++) {
-                        printf("%s\t", table->data[i][j]);
-                    }
-                    printf("\n");
-                }
-            } else {
-                // 说明没有操作符打印所有
-                for (int f = 0; f < table->rowCount; f++) {
-                    for (int j = 0; j < table->columnCount; j++) {
-                        printf("%s\t", table->data[f][j]);
-                    }
-                    printf("\n");
-                }
-            }
-        }
+        selectDataAll(table, operator, value, columnIndex);
     }
     // fieldCount 不为 0 时，输出指定字段
     else {
-        // 输出指定的字段
-        for (int i = 0; i < fieldCount; i++) {
-            printf("%s\t", fields[i]);
-        }
-        printf("\n");
-        // 遍历表中的所有行
-        for (int i = 0; i < table->rowCount; i++) {
-            // 在这里添加应用条件子句的代码
-            // 如果条件子句为真，输出这一行
-            // 判断操作符 = > <
-            if (strcmp(operator, "=") == 0) {
-                if (strcmp(table->data[i][columnIndex], value) == 0) {
-                    // 输出这一行
-                    for (int j = 0; j < fieldCount; j++) {
-                        printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
-                    }
-                    printf("\n");
-                }
-            } else if (strcmp(operator, ">") == 0) {
-                if (strcmp(table->data[i][columnIndex], value) > 0) {
-                    // 输出这一行
-                    for (int j = 0; j < fieldCount; j++) {
-                        printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
-                    }
-                    printf("\n");
-                }
-            } else if (strcmp(operator, "<") == 0) {
-                if (strcmp(table->data[i][columnIndex], value) < 0) {
-                    // 输出这一行
-                    for (int j = 0; j < fieldCount; j++) {
-                        printf("%s\t", table->data[i][getTableColumnIndex(table, fields[j])]);
-                    }
-                    printf("\n");
-                }
+        selectColumnData(table, operator, value, columnIndex, fields, fieldCount);
+    }
+}
+
+void executeEngine(TokenList *tokens, TableList *tableList) {
+    // 根据语法树执行相应的操作
+    switch (tokens->tokens[0].type) {
+        case KEYWORD:
+            if (strcmp(tokens->tokens[0].value, "CREATE") == 0) {
+                executeCreateTable(tokens, tableList);
+            } else if (strcmp(tokens->tokens[0].value, "INSERT") == 0) {
+                executeInsertInto(tokens, tableList);
+            } else if (strcmp(tokens->tokens[0].value, "DELETE") == 0) {
+                executeDeleteFrom(tokens, tableList);
+            } else if (strcmp(tokens->tokens[0].value, "UPDATE") == 0) {
+                executeUpdate(tokens, tableList);
+            } else if (strcmp(tokens->tokens[0].value, "SELECT") == 0) {
+                executeSelect(tokens, tableList);
             } else {
-                // 说明没有该操作符打印所有
-                for (int f = 0; f < table->rowCount; f++) {
-                    for (int j = 0; j < fieldCount; j++) {
-                        printf("%s\t", table->data[f][getTableColumnIndex(table, fields[j])]);
-                    }
-                    printf("\n");
-                }
+                // printError("Unsupported operation");
+                printError("ERROR");
             }
-        }
+            break;
+        default:
+            printError("ERROR");
     }
 }

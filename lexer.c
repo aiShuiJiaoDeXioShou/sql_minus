@@ -22,7 +22,6 @@ void destroyTokenList(TokenList *list) {
     list->size = 0;
 }
 
-
 // 添加 Token 到 TokenList
 void addToken(TokenList *list, Token token) {
     list->tokens = realloc(list->tokens, (list->size + 1) * sizeof(Token));
@@ -42,7 +41,6 @@ int isKeyword(const char *str) {
     }
     return 0;
 }
-
 
 // 词法分析器函数实现
 TokenList tokenize(char *input) {
@@ -155,11 +153,33 @@ TokenList tokenize(char *input) {
             *q++ = *p++;
             *q = '\0';
             addToken(&list, token);
+            // 将字符串后面 ' 之前的字符加入到新的token中
+            Token token2;
+            token2.type = STRING_LITERAL;
+            char *q2 = token2.value;
+
+            while (*p != '\'' && *p != '\0') {
+                // 可能 字符串里面还包含 \' 例如 'I\'m'
+                if (*p == '\\') {
+                    *q2++ = *p++;
+                }
+                *q2++ = *p++;
+            }
+            *q2 = '\0';
+            addToken(&list, token2);
+            // 将 ' 加入到新的token中
+            Token token3;
+            token3.type = STRING;
+            char *q3 = token3.value;
+            *q3++ = *p++;
+            *q3 = '\0';
+            addToken(&list, token3);
             continue;
         }
         // 未知字符
-        fprintf(stderr, "Unknown character %c\n", *p);
-        exit(EXIT_FAILURE);
+//        fprintf(stderr, "Unknown character %c\n", *p);
+//        exit(EXIT_FAILURE);
+        printf("ERROR\n");
     }
     return list;
 }

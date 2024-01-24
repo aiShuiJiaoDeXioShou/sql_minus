@@ -1,0 +1,1 @@
+gcc -o engine_test ./engine_test.c ../lexer.h ../parser.h ../lexer.c ../parser.c ../engine.c ../engine.h && engine_test.exe
